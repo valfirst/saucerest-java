@@ -493,13 +493,30 @@ public class SauceREST {
     /**
      * Invokes the Sauce REST API to retrieve the details of the tunnels currently associated with the user.
      *
-     * @return String (in JSON format) representing the tunnel information
+     * @return ArrayList of tunnel ids
      */
     public ArrayList<String> getTunnels() {
         URL restEndpoint = this.buildURL("v1/" + username + "/tunnels");
         String json = doREST("GET", restEndpoint, null);
         try {
             return mapper.readValue(json, new TypeReference<ArrayList<String>>() {});
+        } catch (IOException e) {
+            e.printStackTrace();
+            // FIXME - this should be its own exception
+        }
+        return null;
+    }
+
+    /**
+     * Invokes the Sauce REST API to retrieve the details of the tunnels currently associated with the user.
+     *
+     * @return Fully expanded list of tunnels
+     */
+    public ArrayList<Tunnel> getFullTunnels() {
+        URL restEndpoint = this.buildURL("v1/" + username + "/tunnels?full=1");
+        String json = doREST("GET", restEndpoint, null);
+        try {
+            return mapper.readValue(json, new TypeReference<ArrayList<Tunnel>>() {});
         } catch (IOException e) {
             e.printStackTrace();
             // FIXME - this should be its own exception

@@ -330,6 +330,20 @@ public class SauceRESTTest extends TestCase {
     }
 
     @Test
+    public void testGetFullTunnels() throws Exception {
+        List<Tunnel> tunnels;
+        urlConnection.setResponseCode(200);
+        urlConnection.setInputStream(getClass().getResource("/full_tunnels.json").openStream());
+
+        tunnels = sauceREST.getFullTunnels();
+        assertEquals(this.urlConnection.getRealURL().getPath(), "/rest/v1/" + this.sauceREST.getUsername() + "/tunnels");
+        assertEquals(this.urlConnection.getRealURL().getQuery(), "full=1");
+        assertNotNull(tunnels);
+        assertEquals(1, tunnels.size());
+        assertEquals("halkeye", tunnels.get(0).getOwner());
+    }
+
+    @Test
     public void testDeleteTunnel() throws Exception {
         urlConnection.setResponseCode(200);
         urlConnection.setInputStream(new ByteArrayInputStream("".getBytes("UTF-8")));
