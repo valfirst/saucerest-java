@@ -3,7 +3,7 @@ package com.saucelabs.saucerest;
 import junit.framework.TestCase;
 import org.hamcrest.CoreMatchers;
 import org.json.JSONObject;
-import org.json.simple.JSONValue;
+import org.json.JSONTokener;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -171,7 +171,10 @@ public class SauceRESTTest extends TestCase {
         sauceREST.recordCI("jenkins", "1.1");
         assertEquals(this.urlConnection.getRealURL().getPath(), "/rest/v1/stats/ci");
         String output = this.urlConnection.getOutputStream().toString();
-        assertEquals(JSONValue.parse(output), JSONValue.parse("{\"platform_version\":\"1.1\",\"platform\":\"jenkins\"}"));
+        assertEquals(
+                new JSONTokener(output).nextValue().toString(),
+                new JSONTokener("{\"platform_version\":\"1.1\",\"platform\":\"jenkins\"}").nextValue().toString()
+        );
     }
 
 
@@ -205,7 +208,10 @@ public class SauceRESTTest extends TestCase {
         assertEquals(this.urlConnection.getRealURL().getPath(), "/rest/v1/" + this.sauceREST.getUsername() + "/jobs/12345");
 
         String output = this.urlConnection.getOutputStream().toString();
-        assertEquals(JSONValue.parse(output), JSONValue.parse("{\"public\":\"shared\"}"));
+        assertEquals(
+                new JSONTokener(output).nextValue().toString(),
+                new JSONTokener("{\"public\":\"shared\"}").nextValue().toString()
+        );
     }
 
 
@@ -328,7 +334,10 @@ public class SauceRESTTest extends TestCase {
         );
         assertNull(this.urlConnection.getRealURL().getQuery());
         String output = this.urlConnection.getOutputStream().toString();
-        assertEquals(JSONValue.parse(output), JSONValue.parse("{\"passed\":false}"));
+        assertEquals(
+                new JSONTokener(output).nextValue().toString(),
+                new JSONTokener("{\"passed\":false}").nextValue().toString()
+        );
     }
 
     @Test
@@ -343,7 +352,10 @@ public class SauceRESTTest extends TestCase {
         );
         assertNull(this.urlConnection.getRealURL().getQuery());
         String output = this.urlConnection.getOutputStream().toString();
-        assertEquals(JSONValue.parse(output), JSONValue.parse("{\"passed\":true}"));
+        assertEquals(
+                new JSONTokener(output).nextValue().toString(),
+                new JSONTokener("{\"passed\":true}").nextValue().toString()
+        );
     }
 
     @Test
