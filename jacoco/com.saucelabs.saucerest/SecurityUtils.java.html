@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>SecurityUtils.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">saucerest</a> &gt; <a href="index.source.html" class="el_package">com.saucelabs.saucerest</a> &gt; <span class="el_source">SecurityUtils.java</span></div><h1>SecurityUtils.java</h1><pre class="source lang-java linenums">package com.saucelabs.saucerest;
+
+import java.security.Key;
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
+import org.apache.commons.codec.binary.Hex;
+
+/*
+ * Modelled after code from {@linkhttp://www.tomred.net/tutorials/tomred-java-generate-hmac-md5-sha1.html}
+*/
+<span class="nc" id="L13">public class SecurityUtils {</span>
+    public static String hmacEncode(String algorithm, String input, String privateKey)
+        throws IllegalArgumentException {
+        try {
+<span class="nc" id="L17">            byte[] keyBytes = privateKey.getBytes();</span>
+<span class="nc" id="L18">            Key key = new SecretKeySpec(keyBytes, 0, keyBytes.length, algorithm);</span>
+<span class="nc" id="L19">            Mac mac = Mac.getInstance(algorithm);</span>
+<span class="nc" id="L20">            mac.init(key);</span>
+<span class="nc" id="L21">            return byteArrayToHex(mac.doFinal(input.getBytes()));</span>
+<span class="nc" id="L22">        } catch(NoSuchAlgorithmException ex) {</span>
+<span class="nc" id="L23">            throw new IllegalArgumentException(&quot;Unknown algorithm: &quot; + algorithm);</span>
+<span class="nc" id="L24">        } catch(InvalidKeyException ex) {</span>
+<span class="nc" id="L25">            throw new IllegalArgumentException(&quot;Illegal key: &quot; + privateKey);</span>
+        }
+    }
+
+    protected static String byteArrayToHex(byte [] bytes) {
+        int hn, ln, cx;
+<span class="nc" id="L31">        String hexDigitChars = &quot;0123456789abcdef&quot;;</span>
+<span class="nc" id="L32">        StringBuffer buf = new StringBuffer(bytes.length * 2);</span>
+<span class="nc bnc" id="L33" title="All 2 branches missed.">        for(cx = 0; cx &lt; bytes.length; cx++) {</span>
+<span class="nc" id="L34">            hn = ((int)(bytes[cx]) &amp; 0x00ff) / 16;</span>
+<span class="nc" id="L35">            ln = ((int)(bytes[cx]) &amp; 0x000f);</span>
+<span class="nc" id="L36">            buf.append(hexDigitChars.charAt(hn));</span>
+<span class="nc" id="L37">            buf.append(hexDigitChars.charAt(ln));</span>
+        }
+<span class="nc" id="L39">        return buf.toString();</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.eclemma.org/jacoco">JaCoCo</a> 0.7.7.201606060606</span></div></body></html>

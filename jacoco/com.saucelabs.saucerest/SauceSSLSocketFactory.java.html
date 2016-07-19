@@ -1,0 +1,242 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>SauceSSLSocketFactory.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">saucerest</a> &gt; <a href="index.source.html" class="el_package">com.saucelabs.saucerest</a> &gt; <span class="el_source">SauceSSLSocketFactory.java</span></div><h1>SauceSSLSocketFactory.java</h1><pre class="source lang-java linenums">package com.saucelabs.saucerest;
+
+import javax.net.ssl.*;
+import java.io.IOException;
+import java.net.InetAddress;
+import java.net.Socket;
+import java.security.KeyManagementException;
+import java.security.NoSuchAlgorithmException;
+import java.security.SecureRandom;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+
+/**
+ *
+ * Custom SSLSocketFactory implementation which ensures that a valid SSL protocol is used.
+ *
+ * Taken from http://stackoverflow.com/questions/1037590/which-cipher-suites-to-enable-for-ssl-socket/23365536#23365536
+ *
+ * @author Ross Rowe
+ */
+class SauceSSLSocketFactory extends SSLSocketFactory {
+
+<span class="nc" id="L24">    public SauceSSLSocketFactory() throws NoSuchAlgorithmException, KeyManagementException {</span>
+<span class="nc" id="L25">        initSSLSocketFactoryEx(null, null, null);</span>
+<span class="nc" id="L26">    }</span>
+
+<span class="nc" id="L28">    public SauceSSLSocketFactory(KeyManager[] km, TrustManager[] tm, SecureRandom random) throws NoSuchAlgorithmException, KeyManagementException {</span>
+<span class="nc" id="L29">        initSSLSocketFactoryEx(km, tm, random);</span>
+<span class="nc" id="L30">    }</span>
+
+<span class="nc" id="L32">    public SauceSSLSocketFactory(SSLContext ctx) throws NoSuchAlgorithmException, KeyManagementException {</span>
+<span class="nc" id="L33">        initSSLSocketFactoryEx(ctx);</span>
+<span class="nc" id="L34">    }</span>
+
+    public String[] getDefaultCipherSuites() {
+<span class="nc" id="L37">        return m_ciphers;</span>
+    }
+
+    public String[] getSupportedCipherSuites() {
+<span class="nc" id="L41">        return m_ciphers;</span>
+    }
+
+    public String[] getDefaultProtocols() {
+<span class="nc" id="L45">        return m_protocols;</span>
+    }
+
+    public String[] getSupportedProtocols() {
+<span class="nc" id="L49">        return m_protocols;</span>
+    }
+
+    public Socket createSocket(Socket s, String host, int port, boolean autoClose) throws IOException {
+<span class="nc" id="L53">        SSLSocketFactory factory = m_ctx.getSocketFactory();</span>
+<span class="nc" id="L54">        SSLSocket ss = (SSLSocket) factory.createSocket(s, host, port, autoClose);</span>
+
+<span class="nc" id="L56">        ss.setEnabledProtocols(m_protocols);</span>
+<span class="nc" id="L57">        ss.setEnabledCipherSuites(m_ciphers);</span>
+
+<span class="nc" id="L59">        return ss;</span>
+    }
+
+    public Socket createSocket(InetAddress address, int port, InetAddress localAddress, int localPort) throws IOException {
+<span class="nc" id="L63">        SSLSocketFactory factory = m_ctx.getSocketFactory();</span>
+<span class="nc" id="L64">        SSLSocket ss = (SSLSocket) factory.createSocket(address, port, localAddress, localPort);</span>
+
+<span class="nc" id="L66">        ss.setEnabledProtocols(m_protocols);</span>
+<span class="nc" id="L67">        ss.setEnabledCipherSuites(m_ciphers);</span>
+
+<span class="nc" id="L69">        return ss;</span>
+    }
+
+    public Socket createSocket(String host, int port, InetAddress localHost, int localPort) throws IOException {
+<span class="nc" id="L73">        SSLSocketFactory factory = m_ctx.getSocketFactory();</span>
+<span class="nc" id="L74">        SSLSocket ss = (SSLSocket) factory.createSocket(host, port, localHost, localPort);</span>
+
+<span class="nc" id="L76">        ss.setEnabledProtocols(m_protocols);</span>
+<span class="nc" id="L77">        ss.setEnabledCipherSuites(m_ciphers);</span>
+
+<span class="nc" id="L79">        return ss;</span>
+    }
+
+    public Socket createSocket(InetAddress host, int port) throws IOException {
+<span class="nc" id="L83">        SSLSocketFactory factory = m_ctx.getSocketFactory();</span>
+<span class="nc" id="L84">        SSLSocket ss = (SSLSocket) factory.createSocket(host, port);</span>
+
+<span class="nc" id="L86">        ss.setEnabledProtocols(m_protocols);</span>
+<span class="nc" id="L87">        ss.setEnabledCipherSuites(m_ciphers);</span>
+
+<span class="nc" id="L89">        return ss;</span>
+    }
+
+    public Socket createSocket(String host, int port) throws IOException {
+<span class="nc" id="L93">        SSLSocketFactory factory = m_ctx.getSocketFactory();</span>
+<span class="nc" id="L94">        SSLSocket ss = (SSLSocket) factory.createSocket(host, port);</span>
+
+<span class="nc" id="L96">        ss.setEnabledProtocols(m_protocols);</span>
+<span class="nc" id="L97">        ss.setEnabledCipherSuites(m_ciphers);</span>
+
+<span class="nc" id="L99">        return ss;</span>
+    }
+
+    private void initSSLSocketFactoryEx(KeyManager[] km, TrustManager[] tm, SecureRandom random)
+            throws NoSuchAlgorithmException, KeyManagementException {
+<span class="nc" id="L104">        m_ctx = SSLContext.getInstance(&quot;TLS&quot;);</span>
+<span class="nc" id="L105">        m_ctx.init(km, tm, random);</span>
+
+<span class="nc" id="L107">        m_protocols = GetProtocolList();</span>
+<span class="nc" id="L108">        m_ciphers = GetCipherList();</span>
+<span class="nc" id="L109">    }</span>
+
+    private void initSSLSocketFactoryEx(SSLContext ctx)
+            throws NoSuchAlgorithmException, KeyManagementException {
+<span class="nc" id="L113">        m_ctx = ctx;</span>
+
+<span class="nc" id="L115">        m_protocols = GetProtocolList();</span>
+<span class="nc" id="L116">        m_ciphers = GetCipherList();</span>
+<span class="nc" id="L117">    }</span>
+
+    protected String[] GetProtocolList() {
+<span class="nc" id="L120">        String[] preferredProtocols = {&quot;TLSv1&quot;, &quot;TLSv1.1&quot;, &quot;TLSv1.2&quot;, &quot;TLSv1.3&quot;};</span>
+<span class="nc" id="L121">        String[] availableProtocols = null;</span>
+
+<span class="nc" id="L123">        SSLSocket socket = null;</span>
+
+        try {
+<span class="nc" id="L126">            SSLSocketFactory factory = m_ctx.getSocketFactory();</span>
+<span class="nc" id="L127">            socket = (SSLSocket) factory.createSocket();</span>
+
+<span class="nc" id="L129">            availableProtocols = socket.getSupportedProtocols();</span>
+<span class="nc" id="L130">            Arrays.sort(availableProtocols);</span>
+<span class="nc" id="L131">        } catch (Exception e) {</span>
+<span class="nc" id="L132">            return new String[]{&quot;TLSv1&quot;};</span>
+        } finally {
+<span class="nc bnc" id="L134" title="All 6 branches missed.">            if (socket != null) {</span>
+                try {
+<span class="nc" id="L136">                    socket.close();</span>
+<span class="nc" id="L137">                } catch (IOException e) {</span>
+                    //ignore
+<span class="nc" id="L139">                }</span>
+            }
+        }
+
+<span class="nc" id="L143">        List&lt;String&gt; aa = new ArrayList&lt;String&gt;();</span>
+<span class="nc bnc" id="L144" title="All 2 branches missed.">        for (int i = 0; i &lt; preferredProtocols.length; i++) {</span>
+<span class="nc" id="L145">            int idx = Arrays.binarySearch(availableProtocols, preferredProtocols[i]);</span>
+<span class="nc bnc" id="L146" title="All 2 branches missed.">            if (idx &gt;= 0)</span>
+<span class="nc" id="L147">                aa.add(preferredProtocols[i]);</span>
+        }
+
+<span class="nc" id="L150">        return aa.toArray(new String[0]);</span>
+    }
+
+    protected String[] GetCipherList() {
+<span class="nc" id="L154">        String[] preferredCiphers = {</span>
+
+                // *_CHACHA20_POLY1305 are 3x to 4x faster than existing cipher suites.
+                //   http://googleonlinesecurity.blogspot.com/2014/04/speeding-up-and-strengthening-https.html
+                // Use them if available. Normative names can be found at (TLS spec depends on IPSec spec):
+                //   http://tools.ietf.org/html/draft-nir-ipsecme-chacha20-poly1305-01
+                //   http://tools.ietf.org/html/draft-mavrogiannopoulos-chacha-tls-02
+                &quot;TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305&quot;,
+                &quot;TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305&quot;,
+                &quot;TLS_ECDHE_ECDSA_WITH_CHACHA20_SHA&quot;,
+                &quot;TLS_ECDHE_RSA_WITH_CHACHA20_SHA&quot;,
+
+                &quot;TLS_DHE_RSA_WITH_CHACHA20_POLY1305&quot;,
+                &quot;TLS_RSA_WITH_CHACHA20_POLY1305&quot;,
+                &quot;TLS_DHE_RSA_WITH_CHACHA20_SHA&quot;,
+                &quot;TLS_RSA_WITH_CHACHA20_SHA&quot;,
+
+                // Done with bleeding edge, back to TLS v1.2 and below
+                &quot;TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384&quot;,
+                &quot;TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384&quot;,
+                &quot;TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256&quot;,
+                &quot;TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256&quot;,
+
+                &quot;TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384&quot;,
+                &quot;TLS_DHE_DSS_WITH_AES_256_GCM_SHA384&quot;,
+                &quot;TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256&quot;,
+                &quot;TLS_DHE_DSS_WITH_AES_128_GCM_SHA256&quot;,
+
+                // TLS v1.0 (with some SSLv3 interop)
+                &quot;TLS_DHE_RSA_WITH_AES_256_CBC_SHA384&quot;,
+                &quot;TLS_DHE_DSS_WITH_AES_256_CBC_SHA256&quot;,
+                &quot;TLS_DHE_RSA_WITH_AES_128_CBC_SHA&quot;,
+                &quot;TLS_DHE_DSS_WITH_AES_128_CBC_SHA&quot;,
+
+                &quot;TLS_DHE_RSA_WITH_3DES_EDE_CBC_SHA&quot;,
+                &quot;TLS_DHE_DSS_WITH_3DES_EDE_CBC_SHA&quot;,
+                &quot;SSL_DH_RSA_WITH_3DES_EDE_CBC_SHA&quot;,
+                &quot;SSL_DH_DSS_WITH_3DES_EDE_CBC_SHA&quot;,
+
+                // RSA key transport sucks, but they are needed as a fallback.
+                // For example, microsoft.com fails under all versions of TLS
+                // if they are not included. If only TLS 1.0 is available at
+                // the client, then google.com will fail too. TLS v1.3 is
+                // trying to deprecate them, so it will be interesteng to see
+                // what happens.
+                &quot;TLS_RSA_WITH_AES_256_CBC_SHA256&quot;,
+                &quot;TLS_RSA_WITH_AES_256_CBC_SHA&quot;,
+                &quot;TLS_RSA_WITH_AES_128_CBC_SHA256&quot;,
+                &quot;TLS_RSA_WITH_AES_128_CBC_SHA&quot;
+        };
+
+<span class="nc" id="L205">        String[] availableCiphers = null;</span>
+
+        try {
+<span class="nc" id="L208">            SSLSocketFactory factory = m_ctx.getSocketFactory();</span>
+<span class="nc" id="L209">            availableCiphers = factory.getSupportedCipherSuites();</span>
+<span class="nc" id="L210">            Arrays.sort(availableCiphers);</span>
+<span class="nc" id="L211">        } catch (Exception e) {</span>
+<span class="nc" id="L212">            return new String[]{</span>
+                    &quot;TLS_DHE_DSS_WITH_AES_128_CBC_SHA&quot;,
+                    &quot;TLS_DHE_DSS_WITH_AES_256_CBC_SHA&quot;,
+                    &quot;TLS_DHE_RSA_WITH_AES_128_CBC_SHA&quot;,
+                    &quot;TLS_DHE_RSA_WITH_AES_256_CBC_SHA&quot;,
+                    &quot;TLS_RSA_WITH_AES_256_CBC_SHA256&quot;,
+                    &quot;TLS_RSA_WITH_AES_256_CBC_SHA&quot;,
+                    &quot;TLS_RSA_WITH_AES_128_CBC_SHA256&quot;,
+                    &quot;TLS_RSA_WITH_AES_128_CBC_SHA&quot;,
+                    &quot;TLS_EMPTY_RENEGOTIATION_INFO_SCSV&quot;
+            };
+<span class="nc" id="L223">        }</span>
+
+<span class="nc" id="L225">        List&lt;String&gt; aa = new ArrayList&lt;String&gt;();</span>
+<span class="nc bnc" id="L226" title="All 2 branches missed.">        for (int i = 0; i &lt; preferredCiphers.length; i++) {</span>
+<span class="nc" id="L227">            int idx = Arrays.binarySearch(availableCiphers, preferredCiphers[i]);</span>
+<span class="nc bnc" id="L228" title="All 2 branches missed.">            if (idx &gt;= 0)</span>
+<span class="nc" id="L229">                aa.add(preferredCiphers[i]);</span>
+        }
+
+<span class="nc" id="L232">        aa.add(&quot;TLS_EMPTY_RENEGOTIATION_INFO_SCSV&quot;);</span>
+
+<span class="nc" id="L234">        return aa.toArray(new String[0]);</span>
+    }
+
+    private SSLContext m_ctx;
+
+    private String[] m_ciphers;
+    private String[] m_protocols;
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.eclemma.org/jacoco">JaCoCo</a> 0.7.7.201606060606</span></div></body></html>

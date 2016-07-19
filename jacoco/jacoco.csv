@@ -1,0 +1,7 @@
+GROUP,PACKAGE,CLASS,INSTRUCTION_MISSED,INSTRUCTION_COVERED,BRANCH_MISSED,BRANCH_COVERED,LINE_MISSED,LINE_COVERED,COMPLEXITY_MISSED,COMPLEXITY_COVERED,METHOD_MISSED,METHOD_COVERED
+saucerest,com.saucelabs.saucerest,SauceException,3,0,0,0,2,0,1,0,1,0
+saucerest,com.saucelabs.saucerest,BuildUtils,3,7,0,0,1,2,1,2,1,2
+saucerest,com.saucelabs.saucerest,SauceSSLSocketFactory,474,0,14,0,81,0,23,0,16,0
+saucerest,com.saucelabs.saucerest,SauceREST,509,888,39,27,99,180,36,38,7,34
+saucerest,com.saucelabs.saucerest,SauceException.NotAuthorized,3,0,0,0,1,0,1,0,1,0
+saucerest,com.saucelabs.saucerest,SecurityUtils,100,0,2,0,18,0,4,0,3,0

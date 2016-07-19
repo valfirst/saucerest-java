@@ -1,0 +1,761 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>SauceREST.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">saucerest</a> &gt; <a href="index.source.html" class="el_package">com.saucelabs.saucerest</a> &gt; <span class="el_source">SauceREST.java</span></div><h1>SauceREST.java</h1><pre class="source lang-java linenums">package com.saucelabs.saucerest;
+
+import org.json.JSONException;
+import org.json.JSONObject;
+
+import javax.net.ssl.HttpsURLConnection;
+import javax.xml.bind.DatatypeConverter;
+import java.io.BufferedInputStream;
+import java.io.BufferedOutputStream;
+import java.io.BufferedReader;
+import java.io.DataOutputStream;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.Serializable;
+import java.net.HttpURLConnection;
+import java.net.MalformedURLException;
+import java.net.SocketTimeoutException;
+import java.net.URL;
+import java.rmi.UnexpectedException;
+import java.security.KeyManagementException;
+import java.security.NoSuchAlgorithmException;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Properties;
+import java.util.concurrent.TimeUnit;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
+/**
+ * Simple Java API that invokes the Sauce REST API.  The full list of the Sauce REST API functionality is available from
+ * &lt;a href=&quot;https://docs.saucelabs.com/reference/rest-api&quot;&gt;https://docs.saucelabs.com/reference/rest-api&lt;/a&gt;.
+ *
+ * @author Ross Rowe
+ */
+public class SauceREST implements Serializable {
+
+    /**
+     * Logger instance.
+     */
+<span class="fc" id="L47">    private static final Logger logger = Logger.getLogger(SauceREST.class.getName());</span>
+    /**
+     * 10 seconds in milliseconds.
+     */
+<span class="fc" id="L51">    private static final long HTTP_READ_TIMEOUT_SECONDS = TimeUnit.SECONDS.toMillis(10);</span>
+    /**
+     * 10 seconds in milliseconds.
+     */
+<span class="fc" id="L55">    private static final long HTTP_CONNECT_TIMEOUT_SECONDS = TimeUnit.SECONDS.toMillis(10);</span>
+    /**
+     * The username to use when performing HTTP requests to the Sauce REST API.
+     */
+    protected String username;
+    /**
+     * The access key to use when performing HTTP requests to the Sauce REST API.
+     */
+    protected String accessKey;
+
+    /**
+     * Date format used as part of the file name for downloaded files.
+     */
+    private static final String DATE_FORMAT = &quot;yyyyMMdd_HHmmSS&quot;;
+
+<span class="fc" id="L70">    private static String extraUserAgent = &quot;&quot;;</span>
+
+    private String server;
+
+    private static final String BASE_URL;
+
+    static {
+<span class="pc bpc" id="L77" title="1 of 2 branches missed.">        if (System.getenv(&quot;SAUCE_REST_ENDPOINT&quot;) != null) {</span>
+<span class="nc" id="L78">            BASE_URL = System.getenv(&quot;SAUCE_REST_ENDPOINT&quot;);</span>
+        } else {
+<span class="fc" id="L80">            BASE_URL = System.getProperty(&quot;saucerest-java.base_url&quot;, &quot;https://saucelabs.com/&quot;);</span>
+        }
+<span class="fc" id="L82">    }</span>
+
+    /**
+     * Constructs a new instance of the SauceREST class.
+     *
+     * @param username  The username to use when performing HTTP requests to the Sauce REST API
+     * @param accessKey The access key to use when performing HTTP requests to the Sauce REST API
+     */
+<span class="fc" id="L90">    public SauceREST(String username, String accessKey) {</span>
+<span class="fc" id="L91">        this.username = username;</span>
+<span class="fc" id="L92">        this.accessKey = accessKey;</span>
+<span class="fc" id="L93">        this.server = BASE_URL;</span>
+<span class="fc" id="L94">    }</span>
+
+    public static String getExtraUserAgent() {
+<span class="fc" id="L97">        return extraUserAgent;</span>
+    }
+
+    public static void setExtraUserAgent(String extraUserAgent) {
+<span class="nc" id="L101">        SauceREST.extraUserAgent = extraUserAgent;</span>
+<span class="nc" id="L102">    }</span>
+
+    /**
+     * Returns username assigned to this interface
+     *
+     * @return Returns username assigned to this interface
+     */
+    public String getUsername() {
+<span class="fc" id="L110">        return this.username;</span>
+    }
+
+    /**
+     * Build the url to be
+     *
+     * @param endpoint    Endpoint url, example &quot;info/platforms/appium&quot;
+     * @return URL to use in direct fetch functions
+     */
+    protected URL buildURL(String endpoint) {
+        try {
+<span class="fc" id="L121">            return new URL(new URL(this.server), &quot;/rest/&quot; + endpoint);</span>
+<span class="nc" id="L122">        } catch (MalformedURLException e) {</span>
+<span class="nc" id="L123">            logger.log(Level.WARNING, &quot;Error constructing Sauce URL&quot;, e);</span>
+<span class="nc" id="L124">            return null;</span>
+        }
+    }
+
+    protected String getUserAgent() {
+<span class="fc" id="L129">        String userAgent = &quot;SauceREST/&quot; + BuildUtils.getCurrentVersion();</span>
+<span class="pc bpc" id="L130" title="1 of 2 branches missed.">        if (!&quot;&quot;.equals(getExtraUserAgent())) {</span>
+<span class="nc" id="L131">            userAgent = userAgent + &quot; &quot; + getExtraUserAgent();</span>
+        }
+<span class="fc" id="L133">        return userAgent;</span>
+    }
+
+    public String doJSONPOST(URL url, JSONObject body) throws SauceException
+    {
+<span class="fc" id="L138">        HttpURLConnection postBack = null;</span>
+<span class="fc" id="L139">        StringBuilder builder = new StringBuilder();</span>
+<span class="fc" id="L140">        BufferedReader reader = null;</span>
+
+        try {
+<span class="fc" id="L143">            postBack = openConnection(url);</span>
+<span class="fc" id="L144">            postBack.setRequestProperty(&quot;User-Agent&quot;, this.getUserAgent());</span>
+
+<span class="pc bpc" id="L146" title="1 of 2 branches missed.">            if (postBack instanceof HttpsURLConnection) {</span>
+<span class="nc" id="L147">                SauceSSLSocketFactory factory = new SauceSSLSocketFactory();</span>
+<span class="nc" id="L148">                ((HttpsURLConnection) postBack).setSSLSocketFactory(factory);</span>
+            }
+<span class="fc" id="L150">            postBack.setDoOutput(true);</span>
+<span class="fc" id="L151">            postBack.setRequestMethod(&quot;POST&quot;);</span>
+<span class="fc" id="L152">            postBack.setRequestProperty(&quot;Content-Type&quot;, &quot;application/json&quot;);</span>
+<span class="fc" id="L153">            addAuthenticationProperty(postBack);</span>
+
+<span class="fc" id="L155">            String jsonText = body.toString();</span>
+<span class="fc" id="L156">            postBack.getOutputStream().write(jsonText.getBytes());</span>
+
+<span class="fc" id="L158">            reader = new BufferedReader(new InputStreamReader(postBack.getInputStream()));</span>
+
+            String inputLine;
+<span class="fc bfc" id="L161" title="All 2 branches covered.">            while ((inputLine = reader.readLine()) != null) {</span>
+<span class="fc" id="L162">                builder.append(inputLine);</span>
+            }
+<span class="nc" id="L164">        } catch (IOException e) {</span>
+            try {
+<span class="nc bnc" id="L166" title="All 2 branches missed.">                if (postBack.getResponseCode() == 401) {</span>
+<span class="nc" id="L167">                    throw new SauceException.NotAuthorized();</span>
+                }
+<span class="nc" id="L169">            } catch (IOException e1) {</span>
+<span class="nc" id="L170">                logger.log(Level.SEVERE, &quot;Error POSTing to &quot; + url.toString() + &quot; and getting status code: &quot;, e);</span>
+<span class="nc" id="L171">            }</span>
+
+<span class="nc" id="L173">            logger.log(Level.SEVERE, &quot;Error POSTing to &quot; + url.toString() + &quot;:&quot;, e);</span>
+<span class="nc" id="L174">        } catch (NoSuchAlgorithmException e) {</span>
+<span class="nc" id="L175">            logger.log(Level.SEVERE, &quot;Error POSTing to &quot; + url.toString() + &quot;:&quot;, e);</span>
+<span class="nc" id="L176">        } catch (KeyManagementException e) {</span>
+<span class="nc" id="L177">            logger.log(Level.SEVERE, &quot;Error POSTing to &quot; + url.toString() + &quot;:&quot;, e);</span>
+        } finally {
+<span class="pc" id="L179">            closeInputStream(postBack);</span>
+            try {
+<span class="pc bpc" id="L181" title="9 of 10 branches missed.">                if (reader != null) {</span>
+<span class="pc" id="L182">                    reader.close();</span>
+                }
+<span class="nc" id="L184">            } catch (IOException e) {</span>
+<span class="nc" id="L185">                logger.log(Level.WARNING, &quot;Error closing Sauce input stream&quot;, e);</span>
+<span class="pc" id="L186">            }</span>
+<span class="nc" id="L187">        }</span>
+<span class="fc" id="L188">        return builder.toString();</span>
+    }
+
+
+
+    /**
+     * Marks a Sauce Job as 'passed'.
+     *
+     * @param jobId the Sauce Job Id, typically equal to the Selenium/WebDriver sessionId
+     */
+    public void jobPassed(String jobId) {
+<span class="fc" id="L199">        Map&lt;String, Object&gt; updates = new HashMap&lt;String, Object&gt;();</span>
+<span class="fc" id="L200">        updates.put(&quot;passed&quot;, true);</span>
+<span class="fc" id="L201">        updateJobInfo(jobId, updates);</span>
+<span class="fc" id="L202">    }</span>
+
+    /**
+     * Marks a Sauce Job as 'failed'.
+     *
+     * @param jobId the Sauce Job Id, typically equal to the Selenium/WebDriver sessionId
+     */
+    public void jobFailed(String jobId) {
+<span class="fc" id="L210">        Map&lt;String, Object&gt; updates = new HashMap&lt;String, Object&gt;();</span>
+<span class="fc" id="L211">        updates.put(&quot;passed&quot;, false);</span>
+<span class="fc" id="L212">        updateJobInfo(jobId, updates);</span>
+<span class="fc" id="L213">    }</span>
+
+    /**
+     * Downloads the video for a Sauce Job to the filesystem.  The file will be stored in
+     * a directory specified by the &lt;code&gt;location&lt;/code&gt; field.
+     *
+     * @param jobId    the Sauce Job Id, typically equal to the Selenium/WebDriver sessionId
+     * @param location represents the base directory where the video should be downloaded to
+     */
+    public void downloadVideo(String jobId, String location) {
+<span class="fc" id="L223">        URL restEndpoint = this.buildURL(&quot;v1/&quot; + username + &quot;/jobs/&quot; + jobId + &quot;/assets/video.flv&quot;);</span>
+<span class="fc" id="L224">        downloadFile(jobId, location, restEndpoint);</span>
+<span class="fc" id="L225">    }</span>
+
+    /**
+     * Downloads the log file for a Sauce Job to the filesystem.  The file will be stored in
+     * a directory specified by the &lt;code&gt;location&lt;/code&gt; field.
+     *
+     * @param jobId    the Sauce Job Id, typically equal to the Selenium/WebDriver sessionId
+     * @param location represents the base directory where the video should be downloaded to
+     */
+    public void downloadLog(String jobId, String location) {
+<span class="fc" id="L235">        URL restEndpoint = this.buildURL(&quot;v1/&quot; + username + &quot;/jobs/&quot; + jobId + &quot;/assets/selenium-server.log&quot;);</span>
+<span class="fc" id="L236">        downloadFile(jobId, location, restEndpoint);</span>
+<span class="fc" id="L237">    }</span>
+
+    /**
+     * Returns the HTTP response for invoking https://saucelabs.com/rest/v1/path.
+     *
+     * @param path path to append to the url
+     * @return HTTP response contents
+     */
+    public String retrieveResults(String path) {
+<span class="fc" id="L246">        URL restEndpoint = this.buildURL(&quot;v1/&quot; + path);</span>
+<span class="fc" id="L247">        return retrieveResults(restEndpoint);</span>
+    }
+
+    /**
+     * Returns a String (in JSON format) representing the details for a Sauce job.
+     *
+     * @param jobId the Sauce Job id to retrieve
+     * @return String (in JSON format) representing the details for a Sauce job
+     */
+    public String getJobInfo(String jobId) {
+<span class="fc" id="L257">        URL restEndpoint = this.buildURL(&quot;v1/&quot; + username + &quot;/jobs/&quot; + jobId);</span>
+<span class="fc" id="L258">        return retrieveResults(restEndpoint);</span>
+    }
+
+    /**
+     * Returns a String (in JSON format) representing the details for a Sauce job.
+     *
+     * @return String (in JSON format) representing the details for a Sauce job
+     */
+    public String getFullJobs() {
+<span class="fc" id="L267">        return getFullJobs(20);</span>
+    }
+    /**
+     * Returns a String (in JSON format) representing the details for a Sauce job.
+     *
+     * @param limit Number of jobs to return
+     * @return String (in JSON format) representing the details for a Sauce job
+     */
+    public String getFullJobs(int limit) {
+<span class="fc" id="L276">        URL restEndpoint = this.buildURL(&quot;v1/&quot; + username + &quot;/jobs?full=true&amp;limit=&quot; + limit);</span>
+<span class="fc" id="L277">        return retrieveResults(restEndpoint);</span>
+    }
+
+    /**
+     * @param restEndpoint the URL to perform a HTTP GET
+     * @return Returns the response from invoking a HTTP GET for the restEndpoint
+     */
+    public String retrieveResults(URL restEndpoint) {
+<span class="fc" id="L285">        BufferedReader reader = null;</span>
+<span class="fc" id="L286">        StringBuilder builder = new StringBuilder();</span>
+        try {
+
+<span class="fc" id="L289">            HttpURLConnection connection = openConnection(restEndpoint);</span>
+<span class="fc" id="L290">            connection.setRequestProperty(&quot;User-Agent&quot;, this.getUserAgent());</span>
+
+<span class="pc bpc" id="L292" title="1 of 2 branches missed.">            if (connection instanceof HttpsURLConnection) {</span>
+<span class="nc" id="L293">                SauceSSLSocketFactory factory = new SauceSSLSocketFactory();</span>
+<span class="nc" id="L294">                ((HttpsURLConnection) connection).setSSLSocketFactory(factory);</span>
+            }
+
+<span class="fc" id="L297">            connection.setRequestProperty(&quot;charset&quot;, &quot;utf-8&quot;);</span>
+<span class="fc" id="L298">            connection.setDoOutput(true);</span>
+<span class="fc" id="L299">            addAuthenticationProperty(connection);</span>
+
+<span class="fc" id="L301">            reader = new BufferedReader(new InputStreamReader(connection.getInputStream()));</span>
+
+            String inputLine;
+<span class="fc bfc" id="L304" title="All 2 branches covered.">            while ((inputLine = reader.readLine()) != null) {</span>
+<span class="fc" id="L305">                builder.append(inputLine);</span>
+            }
+<span class="nc" id="L307">        } catch (SocketTimeoutException e) {</span>
+<span class="nc" id="L308">            logger.log(Level.SEVERE, &quot;Received a SocketTimeoutException when invoking Sauce REST API, check status.saucelabs.com for network outages&quot;, e);</span>
+<span class="nc" id="L309">        } catch (IOException e) {</span>
+<span class="nc" id="L310">            logger.log(Level.SEVERE, &quot;Error retrieving Sauce Results&quot;, e);</span>
+<span class="nc" id="L311">        } catch (NoSuchAlgorithmException e) {</span>
+<span class="nc" id="L312">            logger.log(Level.SEVERE, &quot;Error retrieving Sauce Results&quot;, e);</span>
+<span class="nc" id="L313">        } catch (KeyManagementException e) {</span>
+<span class="nc" id="L314">            logger.log(Level.SEVERE, &quot;Error retrieving Sauce Results&quot;, e);</span>
+<span class="pc" id="L315">        }</span>
+        try {
+<span class="pc bpc" id="L317" title="1 of 2 branches missed.">            if (reader != null) {</span>
+<span class="fc" id="L318">                reader.close();</span>
+            }
+<span class="nc" id="L320">        } catch (IOException e) {</span>
+<span class="nc" id="L321">            logger.log(Level.WARNING, &quot;Error closing Sauce input stream&quot;, e);</span>
+<span class="fc" id="L322">        }</span>
+<span class="fc" id="L323">        return builder.toString();</span>
+    }
+
+    /**
+     * Stores the result of a HTTP GET to the value of the &lt;code&gt;restEndpoint&lt;/code&gt; parameter,
+     * saving the resulting file to the directory defined by the &lt;code&gt;location&lt;/code&gt; parameter.
+     *
+     * @param jobId        the Sauce Job id
+     * @param location     represents the location that the result file should be stored in
+     * @param restEndpoint the URL to perform a HTTP GET
+     */
+    private void downloadFile(String jobId, String location, URL restEndpoint) {
+<span class="fc" id="L335">        BufferedOutputStream out = null;</span>
+        try {
+<span class="fc" id="L337">            HttpURLConnection connection = openConnection(restEndpoint);</span>
+<span class="fc" id="L338">            connection.setRequestProperty(&quot;User-Agent&quot;, this.getUserAgent());</span>
+
+<span class="fc" id="L340">            connection.setDoOutput(true);</span>
+<span class="fc" id="L341">            connection.setRequestMethod(&quot;GET&quot;);</span>
+<span class="fc" id="L342">            addAuthenticationProperty(connection);</span>
+
+<span class="fc" id="L344">            InputStream stream = connection.getInputStream();</span>
+<span class="fc" id="L345">            BufferedInputStream in = new BufferedInputStream(stream);</span>
+<span class="fc" id="L346">            SimpleDateFormat format = new SimpleDateFormat(DATE_FORMAT);</span>
+<span class="fc" id="L347">            String saveName = jobId + format.format(new Date());</span>
+<span class="fc bfc" id="L348" title="All 2 branches covered.">            if (restEndpoint.getPath().endsWith(&quot;.flv&quot;)) {</span>
+<span class="fc" id="L349">                saveName = saveName + &quot;.flv&quot;;</span>
+            } else {
+<span class="fc" id="L351">                saveName = saveName + &quot;.log&quot;;</span>
+            }
+<span class="nc" id="L353">            FileOutputStream file = new FileOutputStream(new File(location, saveName));</span>
+<span class="nc" id="L354">            out = new BufferedOutputStream(file);</span>
+            int i;
+<span class="nc bnc" id="L356" title="All 2 branches missed.">            while ((i = in.read()) != -1) {</span>
+<span class="nc" id="L357">                out.write(i);</span>
+            }
+<span class="nc" id="L359">            out.flush();</span>
+<span class="fc" id="L360">        } catch (IOException e) {</span>
+<span class="fc" id="L361">            logger.log(Level.WARNING, &quot;Error downloading Sauce Results&quot;);</span>
+        } finally {
+<span class="pc bpc" id="L363" title="5 of 6 branches missed.">            if (out != null) {</span>
+                try {
+<span class="nc" id="L365">                    out.close();</span>
+<span class="nc" id="L366">                } catch (IOException e) {</span>
+                    //ignore
+<span class="nc" id="L368">                }</span>
+            }
+        }
+
+<span class="fc" id="L372">    }</span>
+
+    /**
+     * Adds an Authorization request property to the HTTP connection.
+     *
+     * @param connection HttpURLConnection instance which represents the current HTTP request
+     */
+    protected void addAuthenticationProperty(HttpURLConnection connection) {
+<span class="pc bpc" id="L380" title="2 of 4 branches missed.">        if (username != null &amp;&amp; accessKey != null) {</span>
+<span class="fc" id="L381">            String auth = encodeAuthentication();</span>
+<span class="fc" id="L382">            connection.setRequestProperty(&quot;Authorization&quot;, auth);</span>
+        }
+
+<span class="fc" id="L385">    }</span>
+
+    /**
+     * Invokes the Sauce REST API to update the details of a Sauce job, using the details included in the &lt;code&gt;updates&lt;/code&gt;
+     * parameter.
+     *
+     * @param jobId   the Sauce job id to update
+     * @param updates Map of attributes to update
+     */
+    public void updateJobInfo(String jobId, Map&lt;String, Object&gt; updates) {
+<span class="fc" id="L395">        HttpURLConnection postBack = null;</span>
+        try {
+<span class="fc" id="L397">            URL restEndpoint = this.buildURL(&quot;v1/&quot; + username + &quot;/jobs/&quot; + jobId);</span>
+<span class="fc" id="L398">            postBack = openConnection(restEndpoint);</span>
+<span class="fc" id="L399">            postBack.setRequestProperty(&quot;User-Agent&quot;, this.getUserAgent());</span>
+<span class="fc" id="L400">            postBack.setDoOutput(true);</span>
+<span class="fc" id="L401">            postBack.setRequestMethod(&quot;PUT&quot;);</span>
+<span class="fc" id="L402">            addAuthenticationProperty(postBack);</span>
+<span class="fc" id="L403">            String jsonText = updates.toString();</span>
+<span class="fc" id="L404">            postBack.getOutputStream().write(jsonText.getBytes());</span>
+<span class="nc" id="L405">        } catch (IOException e) {</span>
+<span class="nc" id="L406">            logger.log(Level.WARNING, &quot;Error updating Sauce Results&quot;, e);</span>
+<span class="fc" id="L407">        }</span>
+
+<span class="fc" id="L409">        closeInputStream(postBack);</span>
+
+<span class="fc" id="L411">    }</span>
+
+    /**
+     * Invokes the Sauce REST API to stop a running job.
+     *
+     * @param jobId the Sauce Job id
+     */
+    public void stopJob(String jobId) {
+<span class="fc" id="L419">        HttpURLConnection postBack = null;</span>
+
+        try {
+<span class="fc" id="L422">            URL restEndpoint = this.buildURL(&quot;v1/&quot; + username + &quot;/jobs/&quot; + jobId + &quot;/stop&quot;);</span>
+
+<span class="fc" id="L424">            postBack = openConnection(restEndpoint);</span>
+<span class="fc" id="L425">            postBack.setRequestProperty(&quot;User-Agent&quot;, this.getUserAgent());</span>
+<span class="fc" id="L426">            postBack.setDoOutput(true);</span>
+<span class="fc" id="L427">            postBack.setRequestMethod(&quot;PUT&quot;);</span>
+<span class="fc" id="L428">            addAuthenticationProperty(postBack);</span>
+<span class="fc" id="L429">            postBack.getOutputStream().write(&quot;&quot;.getBytes());</span>
+<span class="nc" id="L430">        } catch (IOException e) {</span>
+<span class="nc" id="L431">            logger.log(Level.WARNING, &quot;Error stopping Sauce Job&quot;, e);</span>
+<span class="fc" id="L432">        }</span>
+
+<span class="fc" id="L434">        closeInputStream(postBack);</span>
+
+<span class="fc" id="L436">    }</span>
+
+    private void closeInputStream(HttpURLConnection connection) {
+        try {
+<span class="pc bpc" id="L440" title="1 of 2 branches missed.">            if (connection != null) {</span>
+<span class="fc" id="L441">                connection.getInputStream().close();</span>
+            }
+<span class="nc" id="L443">        } catch (SocketTimeoutException e) {</span>
+<span class="nc" id="L444">            logger.log(Level.SEVERE, &quot;Received a SocketTimeoutException when invoking Sauce REST API, check status.saucelabs.com for network outages&quot;, e);</span>
+<span class="nc" id="L445">        } catch (IOException e) {</span>
+<span class="nc" id="L446">            logger.log(Level.WARNING, &quot;Error closing result stream&quot;, e);</span>
+<span class="pc" id="L447">        }</span>
+
+<span class="fc" id="L449">    }</span>
+
+    /**
+     * Opens a connection to a url.
+     *
+     * @param url URL to connect to
+     * @return HttpURLConnection instance representing the URL connection
+     * @throws IOException when a bad url is provided
+     */
+    public HttpURLConnection openConnection(URL url) throws IOException {
+<span class="nc" id="L459">        HttpURLConnection con = (HttpURLConnection) url.openConnection();</span>
+<span class="nc" id="L460">        con.setReadTimeout((int) HTTP_READ_TIMEOUT_SECONDS);</span>
+<span class="nc" id="L461">        con.setConnectTimeout((int) HTTP_CONNECT_TIMEOUT_SECONDS);</span>
+<span class="nc" id="L462">        return con;</span>
+    }
+
+    /**
+     * Uploads a file to Sauce storage.
+     *
+     * @param file the file to upload
+     *             -param fileName uses file.getName() to store in sauce
+     *             -param overwrite set to true
+     * @return the md5 hash returned by sauce of the file
+     * @throws IOException can be thrown when server returns an error (tcp or http status not in the 200 range)
+     */
+    public String uploadFile(File file) throws IOException {
+<span class="nc" id="L475">        return uploadFile(file, file.getName());</span>
+    }
+
+    /**
+     * Uploads a file to Sauce storage.
+     *
+     * @param file     the file to upload
+     * @param fileName name of the file in sauce storage
+     *                 -param overwrite set to true
+     * @return the md5 hash returned by sauce of the file
+     * @throws IOException can be thrown when server returns an error (tcp or http status not in the 200 range)
+     */
+    public String uploadFile(File file, String fileName) throws IOException {
+<span class="nc" id="L488">        return uploadFile(file, fileName, true);</span>
+    }
+
+    /**
+     * Uploads a file to Sauce storage.
+     *
+     * @param file      the file to upload
+     * @param fileName  name of the file in sauce storage
+     * @param overwrite boolean flag to overwrite file in sauce storage if it exists
+     * @return the md5 hash returned by sauce of the file
+     * @throws IOException can be thrown when server returns an error (tcp or http status not in the 200 range)
+     */
+    public String uploadFile(File file, String fileName, Boolean overwrite) throws IOException {
+<span class="nc" id="L501">        FileInputStream is = null;</span>
+        try {
+<span class="nc" id="L503">            is = new FileInputStream(file);</span>
+<span class="nc" id="L504">            return uploadFile(is, fileName, true);</span>
+        } finally {
+<span class="nc bnc" id="L506" title="All 4 branches missed.">            if (is != null) {</span>
+<span class="nc" id="L507">                is.close();</span>
+            }
+        }
+    }
+
+    /**
+     * Uploads a file to Sauce storage.
+     *
+     * @param is      Input stream of the file to be uploaded
+     * @param fileName  name of the file in sauce storage
+     * @param overwrite boolean flag to overwrite file in sauce storage if it exists
+     * @return the md5 hash returned by sauce of the file
+     * @throws IOException can be thrown when server returns an error (tcp or http status not in the 200 range)
+     */
+    public String uploadFile(InputStream is, String fileName, Boolean overwrite) throws IOException {
+        try {
+<span class="fc" id="L523">            URL restEndpoint = this.buildURL(&quot;v1/storage/&quot; + username + &quot;/&quot; + fileName + &quot;?overwrite=&quot; + overwrite.toString());</span>
+
+<span class="fc" id="L525">            HttpURLConnection connection = openConnection(restEndpoint);</span>
+
+<span class="pc bpc" id="L527" title="1 of 2 branches missed.">            if (connection instanceof HttpsURLConnection) {</span>
+<span class="nc" id="L528">                SauceSSLSocketFactory factory = new SauceSSLSocketFactory();</span>
+<span class="nc" id="L529">                ((HttpsURLConnection) connection).setSSLSocketFactory(factory);</span>
+            }
+
+<span class="fc" id="L532">            connection.setRequestProperty(&quot;User-Agent&quot;, this.getUserAgent());</span>
+<span class="fc" id="L533">            addAuthenticationProperty(connection);</span>
+<span class="fc" id="L534">            connection.setUseCaches(false);</span>
+<span class="fc" id="L535">            connection.setDoOutput(true);</span>
+<span class="fc" id="L536">            connection.setRequestMethod(&quot;POST&quot;);</span>
+<span class="fc" id="L537">            connection.setRequestProperty(&quot;Connection&quot;, &quot;Keep-Alive&quot;);</span>
+<span class="fc" id="L538">            connection.setRequestProperty(&quot;Cache-Control&quot;, &quot;no-cache&quot;);</span>
+<span class="fc" id="L539">            connection.setRequestProperty(&quot;Content-Type&quot;, &quot;application/octet-stream&quot;);</span>
+
+<span class="fc" id="L541">            DataOutputStream oos = new DataOutputStream(connection.getOutputStream());</span>
+
+<span class="fc" id="L543">            int c = 0;</span>
+<span class="fc" id="L544">            byte[] buf = new byte[8192];</span>
+
+<span class="pc bpc" id="L546" title="1 of 2 branches missed.">            while ((c = is.read(buf, 0, buf.length)) &gt; 0) {</span>
+<span class="nc" id="L547">                oos.write(buf, 0, c);</span>
+<span class="nc" id="L548">                oos.flush();</span>
+            }
+<span class="fc" id="L550">            oos.close();</span>
+
+<span class="fc" id="L552">            BufferedReader rd = new BufferedReader(new InputStreamReader(connection.getInputStream()));</span>
+            String line;
+<span class="fc" id="L554">            StringBuilder builder = new StringBuilder();</span>
+<span class="fc bfc" id="L555" title="All 2 branches covered.">            while ((line = rd.readLine()) != null) {</span>
+<span class="fc" id="L556">                builder.append(line);</span>
+            }
+
+<span class="fc" id="L559">            JSONObject sauceUploadResponse = new JSONObject(builder.toString());</span>
+<span class="pc bpc" id="L560" title="1 of 2 branches missed.">            if (sauceUploadResponse.has(&quot;error&quot;)) {</span>
+<span class="nc" id="L561">                throw new UnexpectedException(&quot;Failed to upload to sauce-storage: &quot;</span>
+<span class="nc" id="L562">                        + sauceUploadResponse.getString(&quot;error&quot;));</span>
+            }
+<span class="fc" id="L564">            return sauceUploadResponse.getString(&quot;md5&quot;);</span>
+<span class="nc" id="L565">        } catch (JSONException e) {</span>
+<span class="nc" id="L566">            throw new UnexpectedException(&quot;Failed to parse json response.&quot;, e);</span>
+<span class="nc" id="L567">        } catch (NoSuchAlgorithmException e) {</span>
+<span class="nc" id="L568">            throw new UnexpectedException(&quot;Failed to get algorithm.&quot;, e);</span>
+<span class="nc" id="L569">        } catch (KeyManagementException e) {</span>
+<span class="nc" id="L570">            throw new UnexpectedException(&quot;Failed to get key management.&quot;, e);</span>
+        }
+
+    }
+
+    /**
+     * Generates a link to the job page on Saucelabs.com, which can be accessed
+     * without the user's credentials. Auth token is HMAC/MD5 of the job ID
+     * with the key &amp;lt;username&amp;gt;:&amp;lt;api key&amp;gt;
+     * (see &lt;a href=&quot;http://saucelabs.com/docs/integration#public-job-links&quot;&gt;http://saucelabs.com/docs/integration#public-job-links&lt;/a&gt;).
+     *
+     * @param jobId the Sauce Job Id, typically equal to the Selenium/WebDriver sessionId
+     * @return link to the job page with authorization token
+     */
+    public String getPublicJobLink(String jobId) {
+        try {
+<span class="nc" id="L586">            String key = username + &quot;:&quot; + accessKey;</span>
+<span class="nc" id="L587">            String auth_token = SecurityUtils.hmacEncode(&quot;HmacMD5&quot;, jobId, key);</span>
+<span class="nc" id="L588">            return &quot;https://saucelabs.com/jobs/&quot; + jobId + &quot;?auth=&quot; + auth_token;</span>
+<span class="nc" id="L589">        } catch (IllegalArgumentException ex) {</span>
+            // someone messed up on the algorithm to hmacEncode
+            // For available algorithms see {@link http://docs.oracle.com/javase/7/docs/api/javax/crypto/Mac.html}
+            // we only want to use 'HmacMD5'
+<span class="nc" id="L593">            logger.log(Level.WARNING, &quot;Unable to create an authenticated public link to job:&quot;, ex);</span>
+<span class="nc" id="L594">            return &quot;&quot;;</span>
+        }
+    }
+
+    /**
+     * @return base64 encoded String representing the username/access key
+     */
+    protected String encodeAuthentication() {
+<span class="fc" id="L602">        String auth = username + &quot;:&quot; + accessKey;</span>
+<span class="fc" id="L603">        auth = &quot;Basic &quot; + DatatypeConverter.printBase64Binary(auth.getBytes());</span>
+<span class="fc" id="L604">        return auth;</span>
+    }
+
+    /**
+     * Invokes the Sauce REST API to delete a tunnel.
+     *
+     * @param tunnelId Identifier of the tunnel to delete
+     */
+    public void deleteTunnel(String tunnelId) {
+
+<span class="nc" id="L614">        HttpURLConnection connection = null;</span>
+        try {
+<span class="nc" id="L616">            URL restEndpoint = this.buildURL(&quot;v1/&quot; + username + &quot;/tunnels/&quot; + tunnelId);</span>
+<span class="nc" id="L617">            connection = openConnection(restEndpoint);</span>
+<span class="nc" id="L618">            connection.setRequestProperty(&quot;User-Agent&quot;, this.getUserAgent());</span>
+<span class="nc" id="L619">            connection.setDoOutput(true);</span>
+<span class="nc" id="L620">            connection.setRequestMethod(&quot;DELETE&quot;);</span>
+<span class="nc" id="L621">            addAuthenticationProperty(connection);</span>
+<span class="nc" id="L622">            connection.getOutputStream().write(&quot;&quot;.getBytes());</span>
+<span class="nc" id="L623">        } catch (IOException e) {</span>
+<span class="nc" id="L624">            logger.log(Level.WARNING, &quot;Error stopping Sauce Job&quot;, e);</span>
+<span class="nc" id="L625">        }</span>
+
+<span class="nc" id="L627">        closeInputStream(connection);</span>
+<span class="nc" id="L628">    }</span>
+
+    /**
+     * Invokes the Sauce REST API to retrieve the details of the tunnels currently associated with the user.
+     *
+     * @return String (in JSON format) representing the tunnel information
+     */
+    public String getTunnels() {
+<span class="fc" id="L636">        URL restEndpoint = this.buildURL(&quot;v1/&quot; + username + &quot;/tunnels&quot;);</span>
+<span class="fc" id="L637">        return retrieveResults(restEndpoint);</span>
+    }
+
+    /**
+     * Invokes the Sauce REST API to retrieve the details of the tunnel.
+     *
+     * @param tunnelId the Sauce Tunnel id
+     * @return String (in JSON format) representing the tunnel information
+     */
+    public String getTunnelInformation(String tunnelId) {
+<span class="fc" id="L647">        URL restEndpoint = this.buildURL(&quot;v1/&quot; + username + &quot;/tunnels/&quot; + tunnelId);</span>
+<span class="fc" id="L648">        return retrieveResults(restEndpoint);</span>
+    }
+
+    /**
+     * Invokes the Sauce REST API to retrieve the concurrency details of the user.
+     *
+     * @return String (in JSON format) representing the concurrency information
+     */
+    public String getConcurrency() {
+<span class="fc" id="L657">        URL restEndpoint = this.buildURL(&quot;v1/users/&quot; + username + &quot;/concurrency&quot;);</span>
+<span class="fc" id="L658">        return retrieveResults(restEndpoint);</span>
+    }
+
+    /**
+     * Invokes the Sauce REST API to retrieve the activity details of the user.
+     *
+     * @return String (in JSON format) representing the activity information
+     */
+    public String getActivity() {
+<span class="fc" id="L667">        URL restEndpoint = this.buildURL(&quot;v1/&quot; + username + &quot;/activity&quot;);</span>
+<span class="fc" id="L668">        return retrieveResults(restEndpoint);</span>
+    }
+
+    /**
+     * Returns a String (in JSON format) representing the stored files list
+     *
+     * @return String (in JSON format) representing the stored files list
+     */
+    public String getStoredFiles() {
+<span class="fc" id="L677">        URL restEndpoint = this.buildURL(&quot;v1/storage/&quot; + username);</span>
+<span class="fc" id="L678">        return retrieveResults(restEndpoint);</span>
+    }
+
+    /**
+     * Returns a String (in JSON format) representing the basic account information
+     *
+     * @return String (in JSON format) representing the basic account information
+     */
+    public String getUser() {
+<span class="fc" id="L687">        URL restEndpoint = this.buildURL(&quot;v1/users/&quot; + username);</span>
+<span class="fc" id="L688">        return retrieveResults(restEndpoint);</span>
+    }
+
+    /**
+     * Returns a String (in JSON format) representing the list of objects describing all the OS and browser platforms
+     * currently supported on Sauce Labs.
+     * (see &lt;a href=&quot;https://docs.saucelabs.com/reference/rest-api/#get-supported-platforms&quot;&gt;https://docs.saucelabs.com/reference/rest-api/#get-supported-platforms&lt;/a&gt;).
+     * @param automationApi the automation API name
+     * @return String (in JSON format) representing the supported platforms information
+     */
+    public String getSupportedPlatforms(String automationApi) {
+<span class="fc" id="L699">        URL restEndpoint = this.buildURL(&quot;v1/info/platforms/&quot; + automationApi);</span>
+<span class="fc" id="L700">        return retrieveResults(restEndpoint);</span>
+    }
+
+    /**
+     * Retrieve jobs associated with a build
+     * @param build Build Id
+     * @param limit Max jobs to return
+     * @return String (in JSON format) representing jobs associated with a build
+     */
+    public String getBuildFullJobs(String build, int limit) {
+<span class="pc bpc" id="L710" title="1 of 2 branches missed.">        URL restEndpoint = this.buildURL(</span>
+            &quot;v1/&quot; + this.username + &quot;/build/&quot; + build + &quot;/jobs?full=1&quot; +
+                (limit == 0 ? &quot;&quot; : &quot;&amp;limit=&quot; + limit)
+        );
+<span class="fc" id="L714">        return retrieveResults(restEndpoint);</span>
+    }
+
+    public String getBuildFullJobs(String build) {
+<span class="fc" id="L718">        return getBuildFullJobs(build, 0);</span>
+    }
+
+
+    /**
+     * Record CI Usage to Sauce Labs
+     *
+     * @param platform Platform string. Such as &quot;jenkins&quot;, &quot;bamboo&quot;, &quot;teamcity&quot;
+     * @param platformVersion Version string. Such as &quot;1.1.1&quot;
+     * @return if it was a success or not
+     */
+    public boolean recordCI(String platform, String platformVersion) {
+<span class="fc" id="L730">        URL restEndpoint = this.buildURL(&quot;v1/stats/ci&quot;);</span>
+<span class="fc" id="L731">        JSONObject obj = new JSONObject();</span>
+        try {
+<span class="fc" id="L733">            obj.put(&quot;platform&quot;, platform);</span>
+<span class="fc" id="L734">            obj.put(&quot;platform_version&quot;, platformVersion);</span>
+<span class="nc" id="L735">        } catch (JSONException e) {</span>
+            // JSONException - If the key is null.
+<span class="nc" id="L737">            logger.log(Level.SEVERE, &quot;Error attempting to craft json:&quot;, e);</span>
+<span class="nc" id="L738">            return false;</span>
+<span class="fc" id="L739">        }</span>
+
+        try {
+<span class="fc" id="L742">            doJSONPOST(restEndpoint, obj);</span>
+<span class="nc" id="L743">        } catch (SauceException e) {</span>
+<span class="nc" id="L744">            return false;</span>
+<span class="fc" id="L745">        }</span>
+<span class="fc" id="L746">        return true;</span>
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+<span class="pc bpc" id="L751" title="1 of 2 branches missed.">        if (!(obj instanceof SauceREST)) {</span>
+<span class="nc" id="L752">            return super.equals(obj);</span>
+        }
+<span class="fc" id="L754">        SauceREST sauceobj = (SauceREST) obj;</span>
+<span class="pc bpc" id="L755" title="1 of 2 branches missed.">        return Objects.equals(sauceobj.username, this.username) &amp;&amp;</span>
+<span class="pc bpc" id="L756" title="1 of 2 branches missed.">            Objects.equals(sauceobj.accessKey, this.accessKey) &amp;&amp;</span>
+<span class="pc bpc" id="L757" title="1 of 2 branches missed.">            Objects.equals(sauceobj.server, this.server) &amp;&amp;</span>
+<span class="pc bpc" id="L758" title="1 of 2 branches missed.">            Objects.equals(sauceobj.BASE_URL, this.BASE_URL);</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.eclemma.org/jacoco">JaCoCo</a> 0.7.7.201606060606</span></div></body></html>
